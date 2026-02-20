@@ -75,6 +75,10 @@ private:
     bool pasarAminuscSinAcentos;
     // Si true pasará el token a minúsculas y quitará acentos, antes de realizar la tokenización
 
+    //se crea este array estatico de booleands para evitar llamar a find, ya que find lo que hace es un bucle dentro del string
+    //y como los caracteres van del 0 al 255 se hace de ese tamaño y ahora para ver si es delimitador se consulta aqui, donde si esta a true lo que hace es que es delimitador
+    bool es_delim[256];
+
     string Normalizar(const string& str) const;
     //para quitar accentos y mayusculas
 

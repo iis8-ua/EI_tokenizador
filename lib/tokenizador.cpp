@@ -1,13 +1,14 @@
 #include "tokenizador.h"
 
 Tokenizador::Tokenizador (){
-    delimiters=",;:.-/+*\\ '\"{}[]()<>¡!¿?&#=\t@";
+    DelimitadoresPalabra(",;:.-/+*\\ '\"{}[]()<>¡!¿?&#=\t@"); //para que se rellene tambien el array
     casosEspeciales=true;
     pasarAminuscSinAcentos=false;
 }
 
 Tokenizador::Tokenizador (const Tokenizador& t){
-    this->delimiters=t.delimiters;
+    //para que se copie tambien el array
+    DelimitadoresPalabra(t.delimiters);
     this->casosEspeciales=t.casosEspeciales;
     this->pasarAminuscSinAcentos=t.pasarAminuscSinAcentos;
 }
@@ -15,9 +16,6 @@ Tokenizador::Tokenizador (const Tokenizador& t){
 Tokenizador::Tokenizador (const string& delimitadoresPalabra, const bool& kcasosEspeciales, const bool& minuscSinAcentos){
     this->casosEspeciales=kcasosEspeciales;
     this->pasarAminuscSinAcentos=minuscSinAcentos;
-
-    //esto es provisional, hay que utilizar una variable auxiliar que recorre los delimitadores de entrada y si no esta el char
-    //en la auxiliar se añade y por ultimo hacemos this->delimiters=aux; aux se inicializa con delimiters al inicio
     DelimitadoresPalabra(delimitadoresPalabra);
 }
 
@@ -161,10 +159,22 @@ bool Tokenizador::TokenizarDirectorio (const string& i) const{
 
 void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters){
     delimiters="";
-    for (int i=0; i<nuevoDelimiters.length(); i++){
+    //Se inicializa el array de delimitadores a false
+    for(int i=0; i<256; i++){
+        es_delim[i]=false;
+    }
+
+    //los blancos son delimitadores siempre
+    es_delim[(unsigned char)' '] = true;
+    es_delim[(unsigned char)'\n'] = true;
+    es_delim[(unsigned char)'\r'] = true;
+
+    for(int i=0; i<nuevoDelimiters.length(); i++){
         char c=nuevoDelimiters[i];
-        if(delimiters.find(c) == string::npos){
+        if(delimiters.find(c)==string::npos){
             delimiters +=c;
+            //se guarda tambien en el array
+            es_delim[(unsigned char)c]=true;
         }
     }
 }
@@ -174,6 +184,8 @@ void Tokenizador::AnyadirDelimitadoresPalabra(const string& nuevoDelimiters){
         char c=nuevoDelimiters[i];
         if(delimiters.find(c) == string::npos){
             delimiters +=c;
+            //actualizo el array
+            es_delim[(unsigned char)c]=true;
         }
     }
 }
@@ -209,20 +221,6 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
     string token;
     token.reserve(50);
     int len= str.length();
-
-    //se crea este array estatico de booleands para evitar llamar a find, ya que find lo que hace es un bucle dentro del string
-    //y como los caracteres van del 0 al 255 se hace de ese tamaño y ahora para ver si es delimitador se consulta aqui, donde si esta a true lo que hace es que es delimitador
-    bool es_delim[256]={false};
-
-    //los blancos son delimitadores siempre
-    es_delim[(unsigned char)' '] = true;
-    es_delim[(unsigned char)'\n'] = true;
-    es_delim[(unsigned char)'\r'] = true;
-
-    //se meten los delimitadores en el array
-    for (int i = 0; i < delimiters.length(); i++) {
-        es_delim[(unsigned char)delimiters[i]] = true;
-    }
 
     //para evitar hacer bucles anidados y que me hacian tener esa complejidad cuadratica,
     //creo una maquina de estados para memorizar el estado
