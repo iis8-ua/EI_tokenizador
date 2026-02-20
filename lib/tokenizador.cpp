@@ -82,6 +82,9 @@ bool Tokenizador::Tokenizar (const string& i, const string& f) const{
         return false;
     }
 
+    //se reserva para que el getline evite saturar pidiendo ram
+    cadena.reserve(2048);
+
     while (getline(entrada, cadena)) {
         //la llamamos para cada línea ya que esta vacia la lista
         Tokenizar(cadena, tokens);
