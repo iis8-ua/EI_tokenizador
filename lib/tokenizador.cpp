@@ -287,14 +287,27 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             if(!saltar && !token.empty()){
                 //si aun no es una URL y viene los : a continuación
                 if(!es_url && c==':'){
-                    //lo paso a minusculas para poder asi comparar con el prefijo, antes se hacia copia, ahora lo creo vacio y lo relleno con las minusculas del original
-                    string tokenMinusculas = "";
-                    for (int j = 0; j < token.length(); j++) {
-                        tokenMinusculas += tolower(token[j]);
+                    //evto crear una nueva variable string como hacia antes y evito ese for cada vez que ve dos puntos
+                    //ahora voy accediando caracter a caracter dependiendo de la longitud y veo que es lo que pide
+                    bool inicio_url=false;
+                    if (token.length() == 3) {
+                        if (tolower(token[0]) == 'f' && tolower(token[1]) == 't' && tolower(token[2]) == 'p'){
+                            inicio_url = true;
+                        }
+                    }
+                    else if (token.length()== 4) {
+                        if (tolower(token[0]) == 'h' && tolower(token[1]) == 't' && tolower(token[2]) == 't' && tolower(token[3]) == 'p'){
+                            inicio_url = true;
+                        }
+                    }
+                    else if (token.length()== 5) {
+                        if (tolower(token[0]) == 'h' && tolower(token[1]) == 't' && tolower(token[2]) == 't' && tolower(token[3]) == 'p' && tolower(token[4]) == 's') {
+                            inicio_url = true;
+                        }
                     }
 
                     //hay que comprobar que si c es :, hay que ver que lo que tenemos en el token es solo http, https o ftp
-                    if(tokenMinusculas=="http" || tokenMinusculas=="https" || tokenMinusculas=="ftp"){
+                    if(inicio_url){
                         //aqui vuelvo a no usar el find que recorre el string por un switch con los caracteres delimitadores del find
                         bool es_delim_url = false;
                         switch (siguienteC) {
