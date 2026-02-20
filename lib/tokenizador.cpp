@@ -37,27 +37,29 @@ Tokenizador& Tokenizador::operator= (const Tokenizador& t){
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
     //versión simple vista en teoria, esta no se toca y no se mide la eficiencia
     tokens.clear();
-
+    if(str.empty()){
+        return;
+    }
     string strNormalizado;
+    //se usa un puntero para que al normalizar se apunta a la copia y asi si es falso pasarAMinusculas se apunta al original y no se copia de nuevo
+    const string* punteroStr = &str;
 
     if (pasarAminuscSinAcentos) {
         strNormalizado = Normalizar(str);
-    }
-    else {
-        strNormalizado = str;
+        punteroStr = &strNormalizado;
     }
 
     if(casosEspeciales){
-        TokenizarCasosEspeciales(strNormalizado, tokens);
+        TokenizarCasosEspeciales(*punteroStr, tokens);
     }
     else{
-        string::size_type lastPos = strNormalizado.find_first_not_of(delimiters, 0);
-        string::size_type pos = strNormalizado.find_first_of(delimiters, lastPos);
+        string::size_type lastPos = punteroStr->find_first_not_of(delimiters, 0);
+        string::size_type pos = punteroStr->find_first_of(delimiters, lastPos);
 
         while (string::npos != pos || string::npos != lastPos) {
-            tokens.push_back(strNormalizado.substr(lastPos, pos - lastPos));
-            lastPos = strNormalizado.find_first_not_of(delimiters, pos);
-            pos = strNormalizado.find_first_of(delimiters, lastPos);
+            tokens.push_back(punteroStr->substr(lastPos, pos - lastPos));
+            lastPos = punteroStr->find_first_not_of(delimiters, pos);
+            pos = punteroStr->find_first_of(delimiters, lastPos);
         }
     }
 
