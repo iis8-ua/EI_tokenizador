@@ -204,7 +204,10 @@ ostream& operator<<(ostream& os, const Tokenizador& t){
 }
 
 void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& tokens) const{
-    string token ="";
+    //se pre-reserva el espacia para evitar reservar memoria luego cuando se hace +=
+    //se ha puesto 50 ya que la mayoria de palabras tienen menos de 50 caracteres
+    string token;
+    token.reserve(50);
     int len= str.length();
 
     //se crea este array estatico de booleands para evitar llamar a find, ya que find lo que hace es un bucle dentro del string
@@ -488,8 +491,8 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                 //ese delimitador actua como lo que hemos hecho hasta ahora, es decir, es el fin de la palabra y la añadimos al vector para almacenarlas
                 if(!token.empty()){
                     tokens.push_back(token);
-                    //se reinicia para la siguiente a evaluar
-                    token="";
+                    //se reinicia para la siguiente a evaluar, donde ahora es con clear() en vez de ="" para mantener la reserva que he hecho al principio
+                    token.clear();
 
                     //se reinicia tambien la maquina de estados para la nueva palabra
                     arrobas_en_token = 0;
