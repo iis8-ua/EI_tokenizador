@@ -524,34 +524,56 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 }
 
 string Tokenizador::Normalizar(const string& str) const {
+    static bool tabla_creada = false;
+    static unsigned char tabla_norm[256];
+
+    //se crea una tabla estatica de busqueda que se inicializa solo la primera vez que se llama a la funcion en el codigo
+    if (!tabla_creada) {
+        for (int i = 0; i < 256; i++) {
+            tabla_norm[i] = i;
+        }
+        for (int i = 'A'; i <= 'Z'; i++) {
+            tabla_norm[i] = tolower(i);
+        }
+        for (int i = 0xC0; i <= 0xC5; i++) {
+            tabla_norm[i] = 'a';
+        }
+        for (int i = 0xE0; i <= 0xE5; i++) {
+            tabla_norm[i] = 'a';
+        }
+        for (int i = 0xC8; i <= 0xCB; i++) {
+            tabla_norm[i] = 'e';
+        }
+        for (int i = 0xE8; i <= 0xEB; i++) {
+            tabla_norm[i] = 'e';
+        }
+        for (int i = 0xCC; i <= 0xCF; i++) {
+            tabla_norm[i] = 'i';
+        }
+        for (int i = 0xEC; i <= 0xEF; i++){
+            tabla_norm[i] = 'i';
+        }
+        for (int i = 0xD2; i <= 0xD6; i++){
+            tabla_norm[i] = 'o';
+        }
+        for (int i = 0xF2; i <= 0xF6; i++){
+            tabla_norm[i] = 'o';
+        }
+        for (int i = 0xD9; i <= 0xDC; i++){
+            tabla_norm[i] = 'u';
+        }
+        for (int i = 0xF9; i <= 0xFC; i++){
+            tabla_norm[i] = 'u';
+        }
+        tabla_norm[0xD1] = (char)0xF1; //Ñ -> ñ
+        tabla_norm[0xC7] = (char)0xE7; //Ç -> ç
+        tabla_creada = true;
+    }
+
     string aux = str;
     for (int i = 0; i < aux.length(); i++) {
-        unsigned char c = (unsigned char)aux[i];
-
-        if ((c >= 0xC0 && c <= 0xC5) || (c >= 0xE0 && c <= 0xE5)) {
-            aux[i] = 'a';
-        }
-        else if ((c >= 0xC8 && c <= 0xCB) || (c >= 0xE8 && c <= 0xEB)) {
-            aux[i] = 'e';
-        }
-        else if ((c >= 0xCC && c <= 0xCF) || (c >= 0xEC && c <= 0xEF)) {
-            aux[i] = 'i';
-        }
-        else if ((c >= 0xD2 && c <= 0xD6) || (c >= 0xF2 && c <= 0xF6)) {
-            aux[i] = 'o';
-        }
-        else if ((c >= 0xD9 && c <= 0xDC) || (c >= 0xF9 && c <= 0xFC)) {
-            aux[i] = 'u';
-        }
-        else if (c == 0xD1) {
-            aux[i] = (char)0xF1; //se pasa se Ñ a ñ
-        }
-        else if (c == 0xC7){
-            aux[i] = (char)0xE7; //se pasa de Ç a ç
-        }
-        else if (c >= 'A' && c <= 'Z'){
-            aux[i] = tolower(c); //una vez ya se han quitado las tildes se pasa a minusculas
-        }
+        //antes teniamos los 8 ifs ahora es solo acceder a la tabla esa en una complejidad de O(1)
+        aux[i] = tabla_norm[(unsigned char)aux[i]];
     }
     return aux;
 }
