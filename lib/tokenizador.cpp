@@ -87,9 +87,11 @@ bool Tokenizador::Tokenizar (const string& i, const string& f) const{
         Tokenizar(cadena, tokens);
 
         //se van escribiendo en el fichero de salida, uno por cada linea
+        //se ha cambiado it++ por ++it que asi se evita crear una copia temporal del iterador antes de incrementarlo, desperdicio de CPU para bucles largos
+        //tambien he cambiado endl por \n para que asi el disco duro trabaje a su velocidad y evitar el flush al disco
         list<string>::iterator it;
-        for (it =tokens.begin(); it != tokens.end(); it++) {
-            salida<< (*it) << endl;
+        for (it =tokens.begin(); it != tokens.end(); ++it) {
+            salida<< (*it) << '\n';
         }
     }
     entrada.close();
