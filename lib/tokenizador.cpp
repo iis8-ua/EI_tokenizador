@@ -66,7 +66,6 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
 bool Tokenizador::Tokenizar (const string& i, const string& f) const{
     ifstream entrada;
     ofstream salida;
-    string cadena;
     list<string> tokens;
 
     entrada.open(i.c_str());
@@ -82,6 +81,7 @@ bool Tokenizador::Tokenizar (const string& i, const string& f) const{
         return false;
     }
 
+    string cadena;
     //se reserva para que el getline evite saturar pidiendo ram
     cadena.reserve(2048);
 
@@ -108,15 +108,18 @@ bool Tokenizador::Tokenizar (const string & i) const{
 }
 
 bool Tokenizador::TokenizarListaFicheros (const string& i) const{
-    ifstream lista;
-    string nombreFichero;
-    bool todoCorrecto = true;
-
-    lista.open(i.c_str());
+    ifstream lista(i.c_str());
     if (!lista) {
-        cerr << "ERROR: No existe el archivo de lista: " << i << endl;
+        cerr << "ERROR: No existe el archivo de lista: " << i << '\n';
         return false;
     }
+
+    string nombreFichero;
+    //prereservamos memoria para este nombre
+    nombreFichero.reserve(256);
+    bool todoCorrecto = true;
+    //se saca fuera para que no se haga en cada iteracion del bucle
+    struct stat dir;
 
     while (getline(lista, nombreFichero)) {
         if (nombreFichero.empty()){
@@ -124,10 +127,10 @@ bool Tokenizador::TokenizarListaFicheros (const string& i) const{
         }
 
         //ignorar si es un directorio
-        struct stat dir;
-        int err=stat(nombreFichero.c_str(), &dir);
-        if(err==0){
+        if(stat(nombreFichero.c_str(), &dir)==0){
             if(S_ISDIR(dir.st_mode)){
+                cerr << "ERROR: El elemento de la lista es un directorio: " << nombreFichero << '\n';
+                todoCorrecto = false;
                 continue;
             }
         }
