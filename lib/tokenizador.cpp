@@ -284,8 +284,13 @@ ostream& operator<<(ostream& os, const Tokenizador& t){
 }
 
 void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& tokens) const{
-    string token;
+    //lo que hace es punteros crudos para evitar str.operator[]
+    const char* strData = str.data();
     int len= str.length();
+
+    //buffer estatico en lugar de std::string, lo que hace O3
+    char tokenBuf[2048];
+    int tokenLen = 0;
 
     //para evitar hacer bucles anidados y que me hacian tener esa complejidad cuadratica,
     //creo una maquina de estados para memorizar el estado
@@ -307,7 +312,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 
     for(int i=0; i<len; ++i){
         //aqui tenemos el caracter del string
-        char c=str[i];
+        char c=strData[i];
         //se pasa a unsigned para trabajar y buscar el delimitador en el array estatico
         unsigned char uc = (unsigned char)c;
         //asi la complejidad es O(1) en vez de delimiters.find
@@ -315,7 +320,8 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 
         if(!encontrado){
             //caso en el que no estamos en un delimitador por lo que se añade el caracter para formar el token
-            token += c;
+            //asignacion directa en memoria
+            tokenBuf[tokenLen++] = c;
             //se tiene que ir actualizando la maquina de estados en cada iteracion
             if(c=='@'){
                 arrobas_en_token++;
@@ -347,24 +353,24 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             //se activa comience por SOLO los indicadores de URL ?http:? o ?https:? o ?ftp:? (en minúsculas)
             // seguido por una secuencia de caracteres (incluidos ?_:/.?&-=#@) sin ningún blanco por medio.
             //Finalizará cuando se detecte un delimitador (excepto ?_:/.?&-=#@?) o un blanco (
-            if(!saltar && !token.empty()){
+            if(!saltar && tokenLen>0){
                 //si aun no es una URL y viene los : a continuación
                 if(!es_url && c==':'){
                     //evto crear una nueva variable string como hacia antes y evito ese for cada vez que ve dos puntos
                     //ahora voy accediando caracter a caracter dependiendo de la longitud y veo que es lo que pide
                     bool inicio_url=false;
-                    if (token.length() == 3) {
-                        if (tolower(token[0]) == 'f' && tolower(token[1]) == 't' && tolower(token[2]) == 'p'){
+                    if (tokenLen == 3) {
+                        if (tolower(tokenBuf[0]) == 'f' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 'p'){
                             inicio_url = true;
                         }
                     }
-                    else if (token.length()== 4) {
-                        if (tolower(token[0]) == 'h' && tolower(token[1]) == 't' && tolower(token[2]) == 't' && tolower(token[3]) == 'p'){
+                    else if (tokenLen== 4) {
+                        if (tolower(tokenBuf[0]) == 'h' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 't' && tolower(tokenBuf[3]) == 'p'){
                             inicio_url = true;
                         }
                     }
-                    else if (token.length()== 5) {
-                        if (tolower(token[0]) == 'h' && tolower(token[1]) == 't' && tolower(token[2]) == 't' && tolower(token[3]) == 'p' && tolower(token[4]) == 's') {
+                    else if (tokenLen== 5) {
+                        if (tolower(tokenBuf[0]) == 'h' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 't' && tolower(tokenBuf[3]) == 'p' && tolower(tokenBuf[4]) == 's') {
                             inicio_url = true;
                         }
                     }
@@ -410,7 +416,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             //aparecen al principio del término o por el medio y solo acompañado por numeros (no cientificos)
             if(!saltar && (c=='.' || c==',')){
                 //hay que ver que sea numero el token y que no este vacio
-                bool numero= (token_es_numero && !token.empty());
+                bool numero= (token_es_numero && tokenLen>0);
 
                 //antes teniamos un bucle que miraba lo que ya teniamos generando complejidad cuadratica, por lo que se elimina y se hace una vez por palabra
                 if(i>=fin_palabra_num){
@@ -443,8 +449,8 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                         saltar = true;
                     }
                     //ejemplo .67 -> 0.67
-                    else if (token.empty() && isdigit(usiguienteC)){
-                        token="0";
+                    else if (tokenLen==0 && isdigit(usiguienteC)){
+                        tokenBuf[tokenLen++] = '0';
                         saltar=true;
                         token_es_numero=true;
                     }
@@ -468,7 +474,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                 //solo puede haber un @ en un email por lo que hay que contar ya que si hay dos no se tiene que tratar como un email
                 if(c=='@'){
                     //si no esta vacio y es la primera arroba hace que mirar hacia atras tenga complejidad O(1), tampoco tiene que tener delimitadores previos
-                    if(arrobas_en_token ==0 && !token.empty() && !token_tiene_delimitador){
+                    if(arrobas_en_token ==0 && tokenLen > 0 && !token_tiene_delimitador){
                         //ahora se mira hacia delante sin escanearlo muchas veces, haciendo que sea complejidad O(N)
                         if(i>=fin_palabra_email){
                             es_email_valido=true;
@@ -477,7 +483,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 
                             //ahora hasta el final de la palabra
                             while(fin_palabra_email<len){
-                                char sig = str[fin_palabra_email];
+                                char sig = strData[fin_palabra_email];
                                 //si se encuentra un blanco se para
                                 bool blancoArroba=(sig == ' ' || sig == '\n' || sig == '\r');
                                 if (blancoArroba){
@@ -509,7 +515,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                 }
 
                 //puede contner tanto _ como -  como . hay que controlar eso ya que es solo despues del @ y rodeados de otro no delimitador y sin ningun blanco
-                else if (!token.empty()){
+                else if (tokenLen > 0){
                     //se hace para evitar el find como en los demas
                     bool es_delim_email=false;
                     switch(c){
@@ -531,7 +537,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             //CASO ACRONIMOS --> Delimitadores especiales: ?.?
             //se activa cuando se detecte un punto en medio sin ningun blanco y separados por caracteres distintos no vale otro punto
             //para acabar blanco, delimitador o varios puntos seguidos
-            if(!saltar && c== '.' && !token.empty()){
+            if(!saltar && c== '.' && tokenLen>0){
                 //tambien hay que ver que luego haya algo valido
                 if(siguienteC != '.' && !siguienteDelimitador){
                     saltar=true;
@@ -541,7 +547,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             //CASO MULTIPALABRAS --> Delimitadores especiales: ?-?.
             //detectar un término que contenga por el medio el carácter ?-? (NO rodeado dedelimitadores o espacios en blanco,
             //detectará el inicio y final de la palabra compuesta cuando aparezca el blanco  o cualquiera de los delimitadores
-            if(!saltar && c=='-' && !token.empty()){
+            if(!saltar && c=='-' && tokenLen>0){
                 if(!siguienteDelimitador){
                     saltar=true;
                 }
@@ -550,7 +556,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             //logica para añadir o no añadir el delimitador al token
             if(saltar){
                 //el delimitador aqui se añade a la palabra ya que ha entrado en un caso especial
-                token+=c;
+                tokenBuf[tokenLen++] = c;
                 //ya tiene un delimitador
                 token_tiene_delimitador=true;
 
@@ -565,17 +571,17 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
             else{
                 //lo que se hace es que si no se ha entrado en ningun caso especial
                 //ese delimitador actua como lo que hemos hecho hasta ahora, es decir, es el fin de la palabra y la añadimos al vector para almacenarlas
-                if(!token.empty()){
+                if(tokenLen>0){
                 //si esta en la papelera se reutiliza
                     if(!papelera.empty()){
-                        papelera.front() = token;
+                        papelera.front().assign(tokenBuf, tokenLen);
                         tokens.splice(tokens.end(), papelera, papelera.begin());
                     }
                     else{
-                        tokens.push_back(token);
+                        tokens.push_back(string(tokenBuf, tokenLen));
                     }
                     //se reinicia para la siguiente a evaluar, donde ahora es con clear() en vez de ="" para mantener la reserva que he hecho al principio
-                    token.clear();
+                    tokenLen = 0;
 
                     //se reinicia tambien la maquina de estados para la nueva palabra
                     arrobas_en_token = 0;
@@ -588,14 +594,14 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
     }
 
     //no se si es necesario y se puede omitir, es por si se queda algo en el token
-    if(!token.empty()){
+    if(tokenLen > 0){
         //si ya estan en la papelera se reutilizan los nodos para no llamar siempre a pushback y mejorar los allocs
         if(!papelera.empty()){
-            papelera.front()=token;
+            papelera.front().assign(tokenBuf, tokenLen);
             tokens.splice(tokens.end(), papelera, papelera.begin());
         }
         else{
-            tokens.push_back(token);
+            tokens.push_back(string(tokenBuf, tokenLen));
         }
     }
 }

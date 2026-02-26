@@ -10,6 +10,8 @@
 #include <cctype>
 #include <cstdio>
 #include <vector>
+#include <cstring>
+
 using namespace std;
 
 class Tokenizador {
