@@ -83,6 +83,8 @@ private:
     //para quitar accentos y mayusculas
 
     void TokenizarCasosEspeciales(const string& str, list<string>& tokens) const;
+
+    mutable list<string> papelera;
 };
 
 #endif

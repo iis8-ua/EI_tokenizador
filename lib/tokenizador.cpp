@@ -34,7 +34,7 @@ Tokenizador& Tokenizador::operator= (const Tokenizador& t){
 
 void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
     //versión simple vista en teoria, esta no se toca y no se mide la eficiencia
-    tokens.clear();
+    papelera.splice(papelera.end(), tokens);
     if(str.empty()){
         return;
     }
@@ -54,11 +54,20 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
         string::size_type lastPos = punteroStr->find_first_not_of(delimiters, 0);
         string::size_type pos = punteroStr->find_first_of(delimiters, lastPos);
 
-        while (string::npos != pos || string::npos != lastPos) {
-            tokens.push_back(punteroStr->substr(lastPos, pos - lastPos));
-            lastPos = punteroStr->find_first_not_of(delimiters, pos);
-            pos = punteroStr->find_first_of(delimiters, lastPos);
-        }
+       while (string::npos != pos || string::npos != lastPos) {
+                   string palabra = punteroStr->substr(lastPos, pos - lastPos);
+
+                   // --- RECICLAJE DE NODOS (Sin Casos Especiales) ---
+                   if (!papelera.empty()) {
+                       papelera.front() = palabra; // Sobrescribimos el texto del nodo viejo
+                       tokens.splice(tokens.end(), papelera, papelera.begin()); // Lo movemos a tokens
+                   } else {
+                       tokens.push_back(palabra); // Solo pide RAM si no hay nodos reciclables
+                   }
+
+                   lastPos = punteroStr->find_first_not_of(delimiters, pos);
+                   pos = punteroStr->find_first_of(delimiters, lastPos);
+               }
     }
 
 }
@@ -222,10 +231,7 @@ ostream& operator<<(ostream& os, const Tokenizador& t){
 }
 
 void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& tokens) const{
-    //se pre-reserva el espacia para evitar reservar memoria luego cuando se hace +=
-    //se ha puesto 50 ya que la mayoria de palabras tienen menos de 50 caracteres
     string token;
-    token.reserve(50);
     int len= str.length();
 
     //para evitar hacer bucles anidados y que me hacian tener esa complejidad cuadratica,
@@ -507,7 +513,14 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                 //lo que se hace es que si no se ha entrado en ningun caso especial
                 //ese delimitador actua como lo que hemos hecho hasta ahora, es decir, es el fin de la palabra y la añadimos al vector para almacenarlas
                 if(!token.empty()){
-                    tokens.push_back(token);
+                //si esta en la papelera se reutiliza
+                    if(!papelera.empty()){
+                        papelera.front() = token;
+                        tokens.splice(tokens.end(), papelera, papelera.begin());
+                    }
+                    else{
+                        tokens.push_back(token);
+                    }
                     //se reinicia para la siguiente a evaluar, donde ahora es con clear() en vez de ="" para mantener la reserva que he hecho al principio
                     token.clear();
 
@@ -523,7 +536,14 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 
     //no se si es necesario y se puede omitir, es por si se queda algo en el token
     if(!token.empty()){
-        tokens.push_back(token);
+        //si ya estan en la papelera se reutilizan los nodos para no llamar siempre a pushback y mejorar los allocs
+        if(!papelera.empty()){
+            papelera.front()=token;
+            tokens.splice(tokens.end(), papelera, papelera.begin());
+        }
+        else{
+            tokens.push_back(token);
+        }
     }
 }
 
