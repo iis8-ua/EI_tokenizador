@@ -71,8 +71,7 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
 
 }
 
-bool Tokenizador::Tokenizar (const string& i, const string& f) const{
-    //se va a utilizar la apertura de los archivos como en C ya que es mas rapido
+bool Tokenizador::Tokenizar (const string& i, const string& f) const {
     FILE* entrada = fopen(i.c_str(), "rb");
     if (!entrada) {
         cerr << "ERROR: No existe el archivo: " << i << '\n';
@@ -86,73 +85,75 @@ bool Tokenizador::Tokenizar (const string& i, const string& f) const{
         return false;
     }
 
-    //se crea un buffer para en vez de leer uno por uno se va a leer por bloques
+    char bufferEscritura[131072];
+    setvbuf(salida, bufferEscritura, _IOFBF, sizeof(bufferEscritura));
+
     const int TAM_BLOQUE = 65536;
-    char buffer[TAM_BLOQUE];
+    char bufferLectura[TAM_BLOQUE];
 
-    //bloqueSeguro es el texto que se va a procesar y se guarda el bloque y el trozo del bloque anterior que ha sobrado
-    string bloqueSeguro;
-    bloqueSeguro.reserve(TAM_BLOQUE + 4096);
-
+    // Buffers para líneas (Pequeños, usan SSO)
+    string linea;
+    linea.reserve(4096);
     string resto;
     resto.reserve(4096);
 
     list<string> tokensLocales;
-    size_t bytesLeidos;
-
-    //se vacia la papelera por si queda algo
     papelera.splice(papelera.end(), tokensLocales);
 
-    //bucle para leer los bloques
-    while ((bytesLeidos = fread(buffer, 1, TAM_BLOQUE, entrada)) > 0) {
-        //se prepara el bloque
-        bloqueSeguro.assign(resto);
-        bloqueSeguro.append(buffer, bytesLeidos);
+    size_t bytesLeidos;
 
-        //para buscar hacia atras el ultimo separador y no cortar algo a medias
-        int corte = -1;
+    while ((bytesLeidos = fread(bufferLectura, 1, TAM_BLOQUE, entrada)) > 0) {
+        size_t pos = 0;
 
-        //si se ha leido menos del bloque es que es el final y se procesa lo que queda
-        if (bytesLeidos < TAM_BLOQUE) {
-            corte = bloqueSeguro.length();
-        }
-        else {
-            //se busca el ultimo delimitador seguro desde el final
-            for (int k = bloqueSeguro.length() - 1; k >= 0; k--) {
-                char c = bloqueSeguro[k];
-                //se comprueba que es separador
-                if (es_delim[(unsigned char)c]) {
-                    corte = k + 1;//se corta despues del separador
-                    break;
+        while (pos < bytesLeidos) {
+            size_t start = pos;
+
+            while (pos < bytesLeidos && bufferLectura[pos] != '\n') {
+                pos++;
+            }
+
+            if (pos < bytesLeidos) {
+                if (!resto.empty()) {
+                    resto.append(bufferLectura + start, pos - start);
+                    if (!resto.empty() && resto[resto.length() - 1] == '\r') {
+                        resto.erase(resto.length() - 1);
+                    }
+                    Tokenizar(resto, tokensLocales);
+                    resto.clear();
                 }
+                else {
+                    size_t len = pos - start;
+                    if (len > 0 && bufferLectura[pos - 1] == '\r') {
+                        len--;
+                    }
+                    linea.assign(bufferLectura + start, len);
+                    Tokenizar(linea, tokensLocales);
+                }
+
+                list<string>::iterator it;
+                for (it = tokensLocales.begin(); it != tokensLocales.end(); ++it) {
+                    fwrite(it->data(), 1, it->length(), salida);
+                    fputc('\n', salida);
+                }
+
+                papelera.splice(papelera.end(), tokensLocales);
+                pos++;
+            }
+            else {
+                resto.append(bufferLectura + start, pos - start);
             }
         }
-        //si no hay separador se procesa completo, para el caso de que la palabra tenga > 64kb
-        if (corte == -1) {
-            corte = bloqueSeguro.length();
-        }
-        //guardamos es resto que ha quedado del otro bloque
-        resto.assign(bloqueSeguro, corte, string::npos);
-        //recortamos el bloque con lo ya extraido
-        bloqueSeguro.resize(corte);
-        Tokenizar(bloqueSeguro, tokensLocales);
-
-        //lo escribimos en binario
-        list<string>::iterator it;
-        for (it = tokensLocales.begin(); it != tokensLocales.end(); ++it) {
-            fwrite(it->c_str(), 1, it->length(), salida);
-            fputc('\n', salida);
-        }
-
-        papelera.splice(papelera.end(), tokensLocales);
     }
 
-    //se procesa el resto final por si se ha quedado algo
     if (!resto.empty()) {
-        Tokenizar(bloqueSeguro, tokensLocales);
+        if (resto[resto.length() - 1] == '\r') {
+            resto.erase(resto.length() - 1);
+        }
+        Tokenizar(resto, tokensLocales);
+
         list<string>::iterator it;
         for (it = tokensLocales.begin(); it != tokensLocales.end(); ++it) {
-            fwrite(it->c_str(), 1, it->length(), salida);
+            fwrite(it->data(), 1, it->length(), salida);
             fputc('\n', salida);
         }
         papelera.splice(papelera.end(), tokensLocales);
