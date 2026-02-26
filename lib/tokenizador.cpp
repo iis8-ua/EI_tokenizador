@@ -55,59 +55,111 @@ void Tokenizador::Tokenizar (const string& str, list<string>& tokens) const{
         string::size_type pos = punteroStr->find_first_of(delimiters, lastPos);
 
        while (string::npos != pos || string::npos != lastPos) {
-                   string palabra = punteroStr->substr(lastPos, pos - lastPos);
+           string palabra = punteroStr->substr(lastPos, pos - lastPos);
+           if (!papelera.empty()) {
+               papelera.front() = palabra;
+               tokens.splice(tokens.end(), papelera, papelera.begin());
+           }
+           else {
+               tokens.push_back(palabra);
+           }
 
-                   // --- RECICLAJE DE NODOS (Sin Casos Especiales) ---
-                   if (!papelera.empty()) {
-                       papelera.front() = palabra; // Sobrescribimos el texto del nodo viejo
-                       tokens.splice(tokens.end(), papelera, papelera.begin()); // Lo movemos a tokens
-                   } else {
-                       tokens.push_back(palabra); // Solo pide RAM si no hay nodos reciclables
-                   }
-
-                   lastPos = punteroStr->find_first_not_of(delimiters, pos);
-                   pos = punteroStr->find_first_of(delimiters, lastPos);
-               }
+           lastPos = punteroStr->find_first_not_of(delimiters, pos);
+           pos = punteroStr->find_first_of(delimiters, lastPos);
+       }
     }
 
 }
 
 bool Tokenizador::Tokenizar (const string& i, const string& f) const{
-    ifstream entrada;
-    ofstream salida;
-    list<string> tokens;
-
-    entrada.open(i.c_str());
+    //se va a utilizar la apertura de los archivos como en C ya que es mas rapido
+    FILE* entrada = fopen(i.c_str(), "rb");
     if (!entrada) {
-        cerr << "ERROR: No existe el archivo: " << i << endl;
+        cerr << "ERROR: No existe el archivo: " << i << '\n';
         return false;
     }
 
-    salida.open(f.c_str());
+    FILE* salida = fopen(f.c_str(), "wb");
     if (!salida) {
-        cerr << "ERROR: No se pudo crear el archivo: " << f << endl;
-        entrada.close();
+        cerr << "ERROR: No se pudo crear el archivo: " << f << '\n';
+        fclose(entrada);
         return false;
     }
 
-    string cadena;
-    //se reserva para que el getline evite saturar pidiendo ram
-    cadena.reserve(2048);
+    //se crea un buffer para en vez de leer uno por uno se va a leer por bloques
+    const int TAM_BLOQUE = 65536;
+    char buffer[TAM_BLOQUE];
 
-    while (getline(entrada, cadena)) {
-        //la llamamos para cada línea ya que esta vacia la lista
-        Tokenizar(cadena, tokens);
+    //bloqueSeguro es el texto que se va a procesar y se guarda el bloque y el trozo del bloque anterior que ha sobrado
+    string bloqueSeguro;
+    bloqueSeguro.reserve(TAM_BLOQUE + 4096);
 
-        //se van escribiendo en el fichero de salida, uno por cada linea
-        //se ha cambiado it++ por ++it que asi se evita crear una copia temporal del iterador antes de incrementarlo, desperdicio de CPU para bucles largos
-        //tambien he cambiado endl por \n para que asi el disco duro trabaje a su velocidad y evitar el flush al disco
-        list<string>::iterator it;
-        for (it =tokens.begin(); it != tokens.end(); ++it) {
-            salida<< (*it) << '\n';
+    string resto;
+    resto.reserve(4096);
+
+    list<string> tokensLocales;
+    size_t bytesLeidos;
+
+    //se vacia la papelera por si queda algo
+    papelera.splice(papelera.end(), tokensLocales);
+
+    //bucle para leer los bloques
+    while ((bytesLeidos = fread(buffer, 1, TAM_BLOQUE, entrada)) > 0) {
+        //se prepara el bloque
+        bloqueSeguro.assign(resto);
+        bloqueSeguro.append(buffer, bytesLeidos);
+
+        //para buscar hacia atras el ultimo separador y no cortar algo a medias
+        int corte = -1;
+
+        //si se ha leido menos del bloque es que es el final y se procesa lo que queda
+        if (bytesLeidos < TAM_BLOQUE) {
+            corte = bloqueSeguro.length();
         }
+        else {
+            //se busca el ultimo delimitador seguro desde el final
+            for (int k = bloqueSeguro.length() - 1; k >= 0; k--) {
+                char c = bloqueSeguro[k];
+                //se comprueba que es separador
+                if (es_delim[(unsigned char)c]) {
+                    corte = k + 1;//se corta despues del separador
+                    break;
+                }
+            }
+        }
+        //si no hay separador se procesa completo, para el caso de que la palabra tenga > 64kb
+        if (corte == -1) {
+            corte = bloqueSeguro.length();
+        }
+        //guardamos es resto que ha quedado del otro bloque
+        resto.assign(bloqueSeguro, corte, string::npos);
+        //recortamos el bloque con lo ya extraido
+        bloqueSeguro.resize(corte);
+        Tokenizar(bloqueSeguro, tokensLocales);
+
+        //lo escribimos en binario
+        list<string>::iterator it;
+        for (it = tokensLocales.begin(); it != tokensLocales.end(); ++it) {
+            fwrite(it->c_str(), 1, it->length(), salida);
+            fputc('\n', salida);
+        }
+
+        papelera.splice(papelera.end(), tokensLocales);
     }
-    entrada.close();
-    salida.close();
+
+    //se procesa el resto final por si se ha quedado algo
+    if (!resto.empty()) {
+        Tokenizar(bloqueSeguro, tokensLocales);
+        list<string>::iterator it;
+        for (it = tokensLocales.begin(); it != tokensLocales.end(); ++it) {
+            fwrite(it->c_str(), 1, it->length(), salida);
+            fputc('\n', salida);
+        }
+        papelera.splice(papelera.end(), tokensLocales);
+    }
+
+    fclose(entrada);
+    fclose(salida);
     return true;
 }
 
@@ -160,7 +212,7 @@ bool Tokenizador::TokenizarDirectorio (const string& i) const{
 
     //ISDIR comprueba si es un directorio
     if(err==-1 || !S_ISDIR(dir.st_mode)){
-        cerr << "ERROR: No existe el directorio o no es un directorio: " << i << endl;
+        cerr << "ERROR: No existe el directorio o no es un directorio: " << i << '\n';
         return false;
     }
     else {
@@ -175,7 +227,7 @@ bool Tokenizador::TokenizarDirectorio (const string& i) const{
 void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters){
     delimiters="";
     //Se inicializa el array de delimitadores a false
-    for(int i=0; i<256; i++){
+    for(int i=0; i<256; ++i){
         es_delim[i]=false;
     }
 
@@ -184,7 +236,7 @@ void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters){
     es_delim[(unsigned char)'\n'] = true;
     es_delim[(unsigned char)'\r'] = true;
 
-    for(int i=0; i<nuevoDelimiters.length(); i++){
+    for(int i=0; i<nuevoDelimiters.length(); ++i){
         char c=nuevoDelimiters[i];
         if(delimiters.find(c)==string::npos){
             delimiters +=c;
@@ -195,7 +247,7 @@ void Tokenizador::DelimitadoresPalabra(const string& nuevoDelimiters){
 }
 
 void Tokenizador::AnyadirDelimitadoresPalabra(const string& nuevoDelimiters){
-    for (int i=0; i<nuevoDelimiters.length(); i++){
+    for (int i=0; i<nuevoDelimiters.length(); ++i){
         char c=nuevoDelimiters[i];
         if(delimiters.find(c) == string::npos){
             delimiters +=c;
@@ -252,7 +304,7 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
     //Para poder controlar que es una URL
     bool es_url=false;
 
-    for(int i=0; i<len; i++){
+    for(int i=0; i<len; ++i){
         //aqui tenemos el caracter del string
         char c=str[i];
         //se pasa a unsigned para trabajar y buscar el delimitador en el array estatico
@@ -553,40 +605,40 @@ string Tokenizador::Normalizar(const string& str) const {
 
     //se crea una tabla estatica de busqueda que se inicializa solo la primera vez que se llama a la funcion en el codigo
     if (!tabla_creada) {
-        for (int i = 0; i < 256; i++) {
+        for (int i = 0; i < 256; ++i) {
             tabla_norm[i] = i;
         }
-        for (int i = 'A'; i <= 'Z'; i++) {
+        for (int i = 'A'; i <= 'Z'; ++i) {
             tabla_norm[i] = tolower(i);
         }
-        for (int i = 0xC0; i <= 0xC5; i++) {
+        for (int i = 0xC0; i <= 0xC5; ++i) {
             tabla_norm[i] = 'a';
         }
-        for (int i = 0xE0; i <= 0xE5; i++) {
+        for (int i = 0xE0; i <= 0xE5; ++i) {
             tabla_norm[i] = 'a';
         }
-        for (int i = 0xC8; i <= 0xCB; i++) {
+        for (int i = 0xC8; i <= 0xCB; ++i) {
             tabla_norm[i] = 'e';
         }
-        for (int i = 0xE8; i <= 0xEB; i++) {
+        for (int i = 0xE8; i <= 0xEB; ++i) {
             tabla_norm[i] = 'e';
         }
-        for (int i = 0xCC; i <= 0xCF; i++) {
+        for (int i = 0xCC; i <= 0xCF; ++i) {
             tabla_norm[i] = 'i';
         }
-        for (int i = 0xEC; i <= 0xEF; i++){
+        for (int i = 0xEC; i <= 0xEF; ++i){
             tabla_norm[i] = 'i';
         }
-        for (int i = 0xD2; i <= 0xD6; i++){
+        for (int i = 0xD2; i <= 0xD6; ++i){
             tabla_norm[i] = 'o';
         }
-        for (int i = 0xF2; i <= 0xF6; i++){
+        for (int i = 0xF2; i <= 0xF6; ++i){
             tabla_norm[i] = 'o';
         }
-        for (int i = 0xD9; i <= 0xDC; i++){
+        for (int i = 0xD9; i <= 0xDC; ++i){
             tabla_norm[i] = 'u';
         }
-        for (int i = 0xF9; i <= 0xFC; i++){
+        for (int i = 0xF9; i <= 0xFC; ++i){
             tabla_norm[i] = 'u';
         }
         tabla_norm[0xD1] = (char)0xF1; //Ñ -> ñ
@@ -595,7 +647,7 @@ string Tokenizador::Normalizar(const string& str) const {
     }
 
     string aux = str;
-    for (int i = 0; i < aux.length(); i++) {
+    for (int i = 0; i < aux.length(); ++i) {
         //antes teniamos los 8 ifs ahora es solo acceder a la tabla esa en una complejidad de O(1)
         aux[i] = tabla_norm[(unsigned char)aux[i]];
     }

@@ -8,6 +8,8 @@
 #include <sys/stat.h>
 #include <cstdlib>
 #include <cctype>
+#include <cstdio>
+#include <vector>
 using namespace std;
 
 class Tokenizador {
