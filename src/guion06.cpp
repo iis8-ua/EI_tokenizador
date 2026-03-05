@@ -24,12 +24,17 @@ main(void)
 
         list<string> lt1, lt2;
 
-Tokenizador a("@.&", true, true);
+Tokenizador a("/ ", true, false);
 list<string> tokens;
-a.DelimitadoresPalabra("/ &_:/.?&-=#@");
-string s = "p0 Http://intime.dlsi.ua.es:8080/dossierct/index.jsp?lang=es&status=probable&date=22-01-2013 p1 p2"; 
 
-a.Tokenizar(s, tokens);   
+a.Tokenizar("pal1 -MS-DOS- p1 p2", tokens);
+         imprimirListaSTL(tokens);
+
+a.Tokenizar("pal1 MS-DOS--TRES p1 p2", tokens);
+         imprimirListaSTL(tokens);
+
+a.Tokenizar("pal1 MS-DOS-TRES--- p1 p2", tokens);
          imprimirListaSTL(tokens);
 
 }
+

@@ -360,17 +360,17 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
                     //ahora voy accediando caracter a caracter dependiendo de la longitud y veo que es lo que pide
                     bool inicio_url=false;
                     if (tokenLen == 3) {
-                        if (tokenBuf[0] == 'f' && tokenBuf[1] == 't' && tokenBuf[2] == 'p'){
+                        if (tolower(tokenBuf[0]) == 'f' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 'p'){
                             inicio_url = true;
                         }
                     }
                     else if (tokenLen== 4) {
-                        if (tokenBuf[0] == 'h' && tokenBuf[1] == 't' && tokenBuf[2]== 't' && tokenBuf[3] == 'p'){
+                        if (tolower(tokenBuf[0]) == 'h' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 't' && tolower(tokenBuf[3]) == 'p'){
                             inicio_url = true;
                         }
                     }
                     else if (tokenLen== 5) {
-                        if (tokenBuf[0] == 'h' && tokenBuf[1] == 't' && tokenBuf[2] == 't' && tokenBuf[3] == 'p' && tokenBuf[4] == 's') {
+                        if (tolower(tokenBuf[0]) == 'h' && tolower(tokenBuf[1]) == 't' && tolower(tokenBuf[2]) == 't' && tolower(tokenBuf[3]) == 'p' && tolower(tokenBuf[4]) == 's') {
                             inicio_url = true;
                         }
                     }
@@ -492,7 +492,6 @@ void Tokenizador::TokenizarCasosEspeciales(const string& str, list<string>& toke
 
                                 if(sig=='@'){
                                     contar_arrobas++;
-                                    break;
                                 }
                                 else{
                                     //si se encuentra uno fuerte que no esta permitido se para ya de mirar
@@ -650,8 +649,7 @@ string Tokenizador::Normalizar(const string& str) const {
             tabla_norm[i] = 'u';
         }
         tabla_norm[0xD1] = (char)0xF1; //Ñ -> ñ
-        tabla_norm[0xC7] = 'c'; //Ç ->c
-        tabla_norm[0xE7] = 'c'; //ç->c
+        tabla_norm[0xC7] = (char)0xE7; //Ç -> ç
         tabla_creada = true;
     }
 

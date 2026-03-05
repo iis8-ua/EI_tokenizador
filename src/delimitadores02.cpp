@@ -20,16 +20,13 @@ void imprimirListaSTL(const list<string>& cadena)
 int
 main(void)
 {
-        bool kCasosEspeciales = true, kpasarAminusculas = false;
+        bool kCasosEspeciales = false, kpasarAminusculas = false;
 
         list<string> lt1, lt2;
 
-Tokenizador a("@.&", true, true);
+Tokenizador a("@.&", false, false);
 list<string> tokens;
-a.DelimitadoresPalabra("/ &_:/.?&-=#@");
-string s = "p0 Http://intime.dlsi.ua.es:8080/dossierct/index.jsp?lang=es&status=probable&date=22-01-2013 p1 p2"; 
-
-a.Tokenizar(s, tokens);   
-         imprimirListaSTL(tokens);
+a.AnyadirDelimitadoresPalabra("&_:/.?&-=#@");
+cout << a << endl;
 
 }
